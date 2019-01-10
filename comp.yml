@@ -1,0 +1,21 @@
+version: "3"
+services:
+  stratum:
+    image: docker.io/grinpool/stratum:latest
+    restart: always
+    network_mode: "host"
+    hostname: "stratum"
+    environment:
+      - HA_STAT_PORT=9988
+    ports:
+      - "3333:3333"
+      - "7777:7777"
+  stratum:
+    image: docker.io/grinpool/services:latest
+    restart: always
+    network_mode: "host"
+    hostname: "service"
+    environment:
+      - HA_STAT_PORT=9988
+    ports:
+      - "66:66"
