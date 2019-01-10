@@ -34,7 +34,7 @@ RUN git fetch && \
 
 # Generate configuration
 RUN target/release/grin server config && \
-    target/release/grin wallet init 
+    target/release/grin wallet init
 
 
 # runtime stage
@@ -54,7 +54,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
 
 RUN sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && \
     dpkg-reconfigure --frontend=noninteractive locales && \
-    update-locale LANG=en_US.UTF-8 
+    update-locale LANG=en_US.UTF-8
 
 ENV LANG en_US.UTF-8
 

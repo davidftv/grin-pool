@@ -1,8 +1,8 @@
 # Multistage docker build, requires docker 17.05
 # runtime stage
 FROM debian:9.4
-
-COPY stratum/target/*/grin-pool /usr/local/bin/
+WORKDIR /stratum
+COPY grin-pool /usr/local/bin/
 COPY grin-pool.toml /usr/local/bin/
 COPY grin-pool.toml /stratum
 COPY run.sh /
