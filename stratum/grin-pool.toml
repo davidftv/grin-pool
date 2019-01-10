@@ -22,7 +22,7 @@ port_difficulty = [
 #
 # Configuration for access to upstream grin node
 [grin_node]
-address = "grin"
+address = "127.0.0.1"
 api_port = 13413
 stratum_port = 9200
 login = "mineros"
