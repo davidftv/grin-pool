@@ -10,7 +10,7 @@ services:
     ports:
       - "3333:3333"
       - "7777:7777"
-  stratum:
+  service:
     image: docker.io/grinpool/services:latest
     restart: always
     network_mode: "host"
