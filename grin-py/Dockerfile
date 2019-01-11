@@ -55,4 +55,4 @@ COPY services/config.ini /services/
 COPY api/ /usr/local/bin/api/
 COPY webui/ /usr/local/bin/webui
 
-CMD ["/bin/sh"]
+CMD ["/bin/bash"]
