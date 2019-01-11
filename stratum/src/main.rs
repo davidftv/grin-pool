@@ -31,6 +31,7 @@ extern crate toml;
 extern crate sha2;
 extern crate redis;
 extern crate chrono;
+extern crate r2d2_redis;
 
 use bufstream::BufStream;
 use std::error::Error;

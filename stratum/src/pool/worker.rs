@@ -16,7 +16,9 @@
 //! A single mining worker (the pool manages a vec of Workers)
 //!
 use redis::{Client, Commands, Connection, RedisResult};
-
+use r2d2_redis::{r2d2, redis, RedisConnectionManager};
+use r2d2_redis::r2d2::Pool;
+use r2d2_redis::r2d2::ManageConnection;
 use bufstream::BufStream;
 use serde_json;
 use serde_json::Value;
@@ -45,7 +47,8 @@ pub struct Worker {
     pub block_status: WorkerStatus, // Totals for current block
     pub shares: Vec<SubmitParams>,
     pub needs_job: bool,
-    pub client: Option<Client>,
+    pub redpool: Option<Pool<RedisConnectionManager>>,
+    pub redpool2: Option<Pool<RedisConnectionManager>>,
 }
 
 impl Worker {
@@ -62,8 +65,16 @@ impl Worker {
             block_status: WorkerStatus::new(id.to_string()),
             shares: Vec::new(),
             needs_job: true,
-            client: None,
+            redpool: None,
+            redpool2: None,
         }
+    }
+
+    pub fn setRedPool(&mut self, p: Option<Pool<RedisConnectionManager>>){
+        self.redpool = p;
+    }
+    pub fn setRedPool2(&mut self, p: Option<Pool<RedisConnectionManager>>){
+       self.redpool2 = p;
     }
 
     /// Is the worker in error state?
@@ -100,12 +111,14 @@ impl Worker {
 
         let dt = Utc::today().format("%Y-%m-%d");
 
-        let client = Client::open("redis://127.0.0.1/").unwrap();
-        let conn = client.get_connection().unwrap();
+        // let client = Client::open("redis://127.0.0.1/").unwrap();
+        // let conn = client.get_connection().unwrap();
         // let now: DateTime<Utc> = Utc::now();
         // let curtime = now.format("%a %b %e %T %Y");
         // fmt::format("grin:{}:{}:{}",)
         // let _: () = conn.set(formatted_number, self.status.accepted).unwrap();
+
+        let conn = self.redpool.clone().unwrap().get().unwrap();
 
         let daily_total = format!("grin:{}:{}",dt,s);
         let _: () = conn.incr(daily_total,1).unwrap();
@@ -119,8 +132,11 @@ impl Worker {
     }
 
     pub fn addBlock(&mut self,block: &String) {
-        let client = Client::open("redis://127.0.0.1/8").unwrap();
-        let conn = client.get_connection().unwrap();
+        // let client = Client::open("redis://127.0.0.1/8").unwrap();
+        // let conn = client.get_connection().unwrap();
+        //
+        let conn = self.redpool.clone().unwrap().get().unwrap();
+
         let dt = Utc::today().format("%Y-%m-%d");
         let daily_user = format!("grin:{}:blocks",dt);
         let _: () = conn.rpush(daily_user,block).unwrap();
@@ -191,7 +207,16 @@ impl Worker {
             self.id,
         );
     }
-
+    /// Send OK Response
+    pub fn send_reject(&mut self, method: String,res: String) -> Result<(), String> {
+        trace!(LOGGER, "Worker {} - sending OK Response", self.id);
+        return self.protocol.send_response(
+            &mut self.stream,
+            method,
+            serde_json::to_value(res).unwrap(),
+            self.id,
+        );
+    }
     /// Return any pending shares from this worker
     pub fn get_shares(&mut self) -> Result<Option<Vec<SubmitParams>>, String> {
         if self.shares.len() > 0 {

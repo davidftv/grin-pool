@@ -378,7 +378,7 @@ impl Server {
                                                     // -32501: Share rejected due to low difficulty
                                                     // -32502: Failed to validate solution
                                                     // -32503: Solution submitted too late
-                                                    // XXX TODO - handle more cases?
+                                                    // XXX TODO - handle more cases? send_reject
                                                     let e: RpcError = serde_json::from_value(res.error.unwrap()).unwrap();
                                                     match e.code {
                                                         -32503 => {
@@ -398,6 +398,8 @@ impl Server {
                                                             );
                                                         }
                                                     }
+                                                    let reason = format!("rejected code code {}",e.code);
+                                                    workers_l[w_id].send_reject(res.method.clone(),reason);
                                                 }
                                             };
                                             return Ok(res.method.clone());

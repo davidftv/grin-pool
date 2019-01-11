@@ -24,10 +24,16 @@ use pool::proto::{JobTemplate, RpcError, SubmitParams};
 use pool::server::Server;
 use pool::worker::Worker;
 use std::time::Duration;
+
+use r2d2_redis::{r2d2, RedisConnectionManager};
+use r2d2_redis::redis::Commands;
 // ----------------------------------------
 // Worker Connection Thread Function
-
 // Run in a thread. Adds new connections to the workers list
+fn typeid<T: std::any::Any>(_: &T) {
+    println!("{:?}", std::any::TypeId::of::<T>());
+}
+
 fn accept_workers(
     id: String,
     address: String,
@@ -38,6 +44,13 @@ fn accept_workers(
     let mut worker_id: usize = 0;
     let banned: HashMap<SocketAddr, Instant> = HashMap::new();
     //let client = Client::open("redis://127.0.0.1/").unwrap();
+    let manager = RedisConnectionManager::new("redis://localhost").unwrap();
+    let pool = r2d2::Pool::builder().build(manager).unwrap();
+
+    let manager2 = RedisConnectionManager::new("redis://localhost/8").unwrap();
+    let pool2 = r2d2::Pool::builder().build(manager2).unwrap();
+    //println!("{:?}", pool);
+    typeid(&pool);
 
     // XXX TODO: Call the pool-api to get a list of banned IPs, refresh that list sometimes
     for stream in listener.incoming() {
@@ -60,6 +73,8 @@ fn accept_workers(
                     .expect("set_nonblocking call failed");
                 let mut worker = Worker::new(worker_id, BufStream::new(stream));
                 worker.set_difficulty(difficulty);
+                worker.setRedPool(Some(pool.clone()));
+                worker.setRedPool2(Some(pool2.clone()));
                 workers.lock().unwrap().push(worker);
                 worker_id = worker_id + 1;
             }
