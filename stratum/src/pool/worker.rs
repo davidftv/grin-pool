@@ -40,7 +40,7 @@ pub struct Worker {
     authenticated: bool,
     pub status: WorkerStatus,       // Runing totals
     pub block_status: WorkerStatus, // Totals for current block
-    shares: Vec<SubmitParams>,
+    pub shares: Vec<SubmitParams>,
     pub needs_job: bool,
 }
 
@@ -207,7 +207,7 @@ impl Worker {
 					},
 					Result::Err(err) => { }
 				};
-					
+
                             }
                             "status" => {
                                 trace!(LOGGER, "Worker {} - Accepting status request", self.id);

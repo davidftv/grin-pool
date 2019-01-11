@@ -148,6 +148,7 @@ impl Pool {
 
             // Delete workers in error state
             let _num_active_workers = self.clean_workers();
+            self.showWorkersStats();
 
             thread::sleep(time::Duration::from_millis(50));
         }
@@ -316,6 +317,23 @@ impl Pool {
             if start >= workers_l.len() {
                 return workers_l.len();
             }
+        }
+    }
+
+    // Purge dead/sick workers - remove all workers marked in error state
+    fn showWorkersStats(&mut self) -> usize {
+        let mut start = 0;
+        let mut workers_l = self.workers.lock().unwrap();
+        for worker in workers_l.iter_mut() {
+            warn!(
+                LOGGER,
+                "worker[{}], login[{}] = status[{}], share[{}] ",
+                worker.id,
+                worker.login,
+                worker.status,
+                worker.block_status,
+                worker.shares
+            );
         }
     }
 }

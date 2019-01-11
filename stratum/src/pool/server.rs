@@ -245,7 +245,7 @@ impl Server {
                                                 "{} - Setting new job for height {} job_id {}",
                                                 self.id,
                                                 job.height,
-						job.job_id,
+						                        job.job_id,
                                             );
                                             self.job = job;
                                             return Ok(req.method.clone());
