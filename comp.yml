@@ -12,7 +12,12 @@ services:
       - "7777:7777"
   service:
     image: docker.io/grinpool/services:latest
-    restart: always
+    restart: "no"
+    command: |
+        /bin/bash -c "
+          set -e
+          python /usr/local/bin/webui/__init__.py
+        "
     network_mode: "host"
     hostname: "service"
     environment:

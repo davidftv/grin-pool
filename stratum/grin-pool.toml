@@ -16,7 +16,6 @@ log_dir = "/tmp"
 listen_address = "0.0.0.0"
 port_difficulty = [
  [9103, 1],
- [9105, 4],
  [9107, 8],
  [9150, 1],
 ]
