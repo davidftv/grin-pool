@@ -1,4 +1,5 @@
 FROM debian:9.4
+RUN sed -i 's#http://deb.debian.org/#http://mirrors.cloud.aliyuncs.com/#' /etc/apt/sources.list
 
 RUN set -ex && \
     apt-get update && \

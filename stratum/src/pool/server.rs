@@ -362,11 +362,14 @@ impl Server {
                                                         "setting stats for worker id {:?}", res.id
                                                     );
                                                     workers_l[w_id].status.accepted += 1;
+                                                    workers_l[w_id].incrAccept();
                                                     debug!(LOGGER, "Server accepted our share");
                                                     workers_l[w_id].send_ok(res.method.clone());
                                                     let msg = response.clone().to_string();
                                                     if msg.contains("blockfound"){
                                                         workers_l[w_id].status.blockfound += 1;
+                                                        workers_l[w_id].incrBlockFound();
+                                                        workers_l[w_id].addBlock(&msg);
                                                     }
                                                 }
                                                 None => {
@@ -380,6 +383,7 @@ impl Server {
                                                     match e.code {
                                                         -32503 => {
                                                             workers_l[w_id].status.stale += 1;
+                                                            workers_l[w_id].incrStale();
                                                             debug!(
                                                                 LOGGER,
                                                                 "Server rejected share as stale"
@@ -387,6 +391,7 @@ impl Server {
                                                         }
                                                         _ => {
                                                             workers_l[w_id].status.rejected += 1;
+                                                            workers_l[w_id].incrReject();
                                                             debug!(
                                                                 LOGGER,
                                                                 "Server rejected share as invalid"

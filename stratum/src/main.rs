@@ -29,6 +29,8 @@ extern crate lazy_static;
 #[macro_use]
 extern crate toml;
 extern crate sha2;
+extern crate redis;
+extern crate chrono;
 
 use bufstream::BufStream;
 use std::error::Error;
@@ -39,6 +41,7 @@ use std::sync::{Arc, Mutex, RwLock};
 use std::thread;
 use std::time::Duration;
 use std::time::SystemTime;
+
 
 mod pool;
 use pool::config;

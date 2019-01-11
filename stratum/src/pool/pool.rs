@@ -10,7 +10,6 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
 use bufstream::BufStream;
 use std::collections::HashMap;
 use std::net::{Shutdown, SocketAddr, TcpListener, TcpStream};
@@ -38,6 +37,8 @@ fn accept_workers(
     let listener = TcpListener::bind(address).expect("Failed to bind to listen address");
     let mut worker_id: usize = 0;
     let banned: HashMap<SocketAddr, Instant> = HashMap::new();
+    //let client = Client::open("redis://127.0.0.1/").unwrap();
+
     // XXX TODO: Call the pool-api to get a list of banned IPs, refresh that list sometimes
     for stream in listener.incoming() {
         match stream {
@@ -98,6 +99,9 @@ impl Pool {
             duplicates: HashMap::new(),
         }
     }
+    fn generateRedisKey(&mut self,user : &String) -> String {
+        return "ssss".to_string()+user;
+    }
 
     /// Run the Pool
     pub fn run(&mut self) {
@@ -114,6 +118,9 @@ impl Pool {
         }
         let wks = self.workers.clone();
         thread::spawn(move|| {
+            // let client = Client::open("redis://127.0.0.1/").unwrap();
+            //let _ : () = try!(con.set("my_key", 42));
+            //con.get("my_key")
             loop {
                 thread::sleep(Duration::from_secs(10));
                 //let mut workers_th = self.workers.clone();
@@ -134,6 +141,13 @@ impl Pool {
                         worker.block_status,
                         worker.shares
                     );
+                    // let conn = client.get_connection().unwrap();
+                    // let now: DateTime<Utc> = Utc::now();
+                    // let curtime = now.format("%a %b %e %T %Y");
+                    // fmt::format("grin:{}:{}:{}",)
+                    // let _: () = conn.set("ssss".to_string()+&worker.login().clone(), worker.status.accepted).unwrap();
+                    //let answer: int = conn.get("answer").unwrap();
+                    //println!("Answer: {}", answer);
                 }
             }
         });

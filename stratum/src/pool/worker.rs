@@ -15,15 +15,18 @@
 //!
 //! A single mining worker (the pool manages a vec of Workers)
 //!
+use redis::{Client, Commands, Connection, RedisResult};
 
 use bufstream::BufStream;
 use serde_json;
 use serde_json::Value;
 use std::net::TcpStream;
+use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime};
+use chrono::prelude::*;
 
 use pool::logger::LOGGER;
 use pool::proto::RpcRequest;
-use pool::proto::{JobTemplate, LoginParams, StratumProtocol, SubmitParams, WorkerStatus};
+use pool::proto::{JobTemplate, LoginParams, StratumProtocol, SubmitParams, WorkerStatus,IncrementType};
 
 // ----------------------------------------
 // Worker Object - a connected stratum client - a miner
@@ -42,6 +45,7 @@ pub struct Worker {
     pub block_status: WorkerStatus, // Totals for current block
     pub shares: Vec<SubmitParams>,
     pub needs_job: bool,
+    pub client: Option<Client>,
 }
 
 impl Worker {
@@ -58,6 +62,7 @@ impl Worker {
             block_status: WorkerStatus::new(id.to_string()),
             shares: Vec::new(),
             needs_job: true,
+            client: None,
         }
     }
 
@@ -77,6 +82,65 @@ impl Worker {
             None => "None".to_string(),
             Some(ref login) => login.login.clone(),
         }
+    }
+
+    pub fn incrCounter(&mut self,ctType: IncrementType) {
+        // let s = match ctType {
+        //     IncrementType::AC => {self.status.accepted=self.status.accepted+0;"accept"},
+        //     IncrementType::RE => {self.status.rejected=self.status.rejected+0;"rejected"},
+        //     IncrementType::ST => {self.status.stale=self.status.stale+0;"stale"},
+        //     IncrementType::BF => {self.status.blockfound=self.status.blockfound+0;"blockfound"},
+        // };
+        let s = match ctType {
+            IncrementType::AC => "accept",
+            IncrementType::RE => "rejected",
+            IncrementType::ST => "stale",
+            IncrementType::BF => "blockfound",
+        };
+
+        let dt = Utc::today().format("%Y-%m-%d");
+
+        let client = Client::open("redis://127.0.0.1/").unwrap();
+        let conn = client.get_connection().unwrap();
+        // let now: DateTime<Utc> = Utc::now();
+        // let curtime = now.format("%a %b %e %T %Y");
+        // fmt::format("grin:{}:{}:{}",)
+        // let _: () = conn.set(formatted_number, self.status.accepted).unwrap();
+
+        let daily_total = format!("grin:{}:{}",dt,s);
+        let _: () = conn.incr(daily_total,1).unwrap();
+
+        let daily_user = format!("grin:{}:{}:{}", dt,self.login().clone(),s);
+        let _: () = conn.incr(daily_user,1).unwrap();
+
+        let user_day_total = format!("grin:{}:{}:{}", self.login().clone(),dt,s);
+        let _: () = conn.incr(user_day_total,1).unwrap();
+
+    }
+
+    pub fn addBlock(&mut self,block: &String) {
+        let client = Client::open("redis://127.0.0.1/8").unwrap();
+        let conn = client.get_connection().unwrap();
+        let dt = Utc::today().format("%Y-%m-%d");
+        let daily_user = format!("grin:{}:blocks",dt);
+        let _: () = conn.rpush(daily_user,block).unwrap();
+
+    }
+    pub fn incrAccept(&mut self){
+        let t = IncrementType::AC;
+        self.incrCounter(t);
+    }
+    pub fn incrReject(&mut self){
+        let t = IncrementType::RE;
+        self.incrCounter(t);
+    }
+    pub fn incrStale(&mut self){
+        let t = IncrementType::ST;
+        self.incrCounter(t);
+    }
+    pub fn incrBlockFound(&mut self){
+        let t = IncrementType::BF;
+        self.incrCounter(t);
     }
 
     /// Set job difficulty

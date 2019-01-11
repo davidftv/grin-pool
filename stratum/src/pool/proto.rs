@@ -113,7 +113,12 @@ impl WorkerStatus {
         }
     }
 }
-
+pub enum IncrementType {
+    AC,
+    RE,
+    ST,
+    BF
+}
 // --------------------------------
 // A Staratum Protocol Interface
 
