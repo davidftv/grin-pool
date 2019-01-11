@@ -24,7 +24,7 @@ use pool::logger::LOGGER;
 use pool::proto::{JobTemplate, RpcError, SubmitParams};
 use pool::server::Server;
 use pool::worker::Worker;
-
+use std::time::Duration;
 // ----------------------------------------
 // Worker Connection Thread Function
 
@@ -112,7 +112,31 @@ impl Pool {
                 accept_workers(id_th, address_th, difficulty_th, &mut workers_th);
             });
         }
-
+        let wks = self.workers.clone();
+        thread::spawn(move|| {
+            loop {
+                thread::sleep(Duration::from_secs(10));
+                //let mut workers_th = self.workers.clone();
+                warn!(
+                    LOGGER,
+                    "there are {} number of connected miner rigs",
+                    wks.lock().unwrap().len()
+                );
+                let mut workers_l = wks.lock().unwrap();
+                for worker in workers_l.iter_mut() {
+                    warn!(
+                        LOGGER,
+                        "worker[{}], login[{:?}] = status[{:?}], block_status[{:?}], shares[{:?}] ",
+                        worker.id,
+                        worker.login(),
+                        // serde_json::to_string_pretty(&worker.login).unwrap(),
+                        worker.status,
+                        worker.block_status,
+                        worker.shares
+                    );
+                }
+            }
+        });
         // ------------
         // Main loop
         loop {
@@ -148,7 +172,6 @@ impl Pool {
 
             // Delete workers in error state
             let _num_active_workers = self.clean_workers();
-            self.showWorkersStats();
 
             thread::sleep(time::Duration::from_millis(50));
         }
@@ -317,23 +340,6 @@ impl Pool {
             if start >= workers_l.len() {
                 return workers_l.len();
             }
-        }
-    }
-
-    // Purge dead/sick workers - remove all workers marked in error state
-    fn showWorkersStats(&mut self) -> usize {
-        let mut start = 0;
-        let mut workers_l = self.workers.lock().unwrap();
-        for worker in workers_l.iter_mut() {
-            warn!(
-                LOGGER,
-                "worker[{}], login[{}] = status[{}], share[{}] ",
-                worker.id,
-                worker.login,
-                worker.status,
-                worker.block_status,
-                worker.shares
-            );
         }
     }
 }

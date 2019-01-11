@@ -97,6 +97,7 @@ pub struct WorkerStatus {
     pub accepted: u64,
     pub rejected: u64,
     pub stale: u64,
+    pub blockfound: u32,
 }
 
 impl WorkerStatus {
@@ -108,6 +109,7 @@ impl WorkerStatus {
             accepted: 0,
             rejected: 0,
             stale: 0,
+            blockfound: 0,
         }
     }
 }

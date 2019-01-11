@@ -33,7 +33,7 @@ pub struct WorkerConfig {}
 
 pub struct Worker {
     pub id: usize,
-    login: Option<LoginParams>,
+    pub login: Option<LoginParams>,
     stream: BufStream<TcpStream>,
     protocol: StratumProtocol,
     error: bool,

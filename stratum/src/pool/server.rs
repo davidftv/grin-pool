@@ -245,7 +245,7 @@ impl Server {
                                                 "{} - Setting new job for height {} job_id {}",
                                                 self.id,
                                                 job.height,
-						                        job.job_id,
+						job.job_id,
                                             );
                                             self.job = job;
                                             return Ok(req.method.clone());
@@ -282,7 +282,7 @@ impl Server {
                                         Err(err) => {
                                             let e = RpcError {
                                                 code: -1,
-                                                message: "Invalid Worker ID".to_string(),
+                                                message: "Invalid Worker ID= ".to_string()+&res.id,
                                             };
                                             return Err(e);
                                         }
@@ -364,6 +364,10 @@ impl Server {
                                                     workers_l[w_id].status.accepted += 1;
                                                     debug!(LOGGER, "Server accepted our share");
                                                     workers_l[w_id].send_ok(res.method.clone());
+                                                    let msg = response.clone().to_string();
+                                                    if msg.contains("blockfound"){
+                                                        workers_l[w_id].status.blockfound += 1;
+                                                    }
                                                 }
                                                 None => {
                                                     // The share was not accepted, check RpcError.code for reason
