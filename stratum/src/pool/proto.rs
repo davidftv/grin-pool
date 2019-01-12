@@ -100,6 +100,7 @@ pub struct WorkerStatus {
 
     #[serde(skip_deserializing)]
     #[serde(skip_serializing)]
+    #[serde(rename = "bss")]
     pub blockfound: u32,
 }
 
