@@ -10,17 +10,3 @@ services:
     ports:
       - "3333:3333"
       - "7777:7777"
-  service:
-    image: docker.io/grinpool/services:latest
-    restart: "no"
-    command: |
-        /bin/bash -c "
-          set -e
-          python /usr/local/bin/webui/__init__.py
-        "
-    network_mode: "host"
-    hostname: "service"
-    environment:
-      - HA_STAT_PORT=9988
-    ports:
-      - "66:66"
