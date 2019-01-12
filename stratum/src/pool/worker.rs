@@ -135,7 +135,7 @@ impl Worker {
         // let client = Client::open("redis://127.0.0.1/8").unwrap();
         // let conn = client.get_connection().unwrap();
         //
-        let conn = self.redpool.clone().unwrap().get().unwrap();
+        let conn = self.redpool2.clone().unwrap().get().unwrap();
 
         let dt = Utc::today().format("%Y-%m-%d");
         let daily_user = format!("grin:{}:blocks",dt);
