@@ -138,8 +138,8 @@ impl Worker {
         let conn = self.redpool2.clone().unwrap().get().unwrap();
 
         let dt = Utc::today().format("%Y-%m-%d");
-        let daily_user = format!("grin:{}:blocks",dt);
-        let _: () = conn.rpush(daily_user,block).unwrap();
+        let daily_user = format!("grin:{}:{}:blocks",dt,self.login().clone());
+        let _: () = conn.hset(daily_user,self.status.height,block).unwrap();
 
     }
     pub fn incrAccept(&mut self){
