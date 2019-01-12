@@ -97,6 +97,7 @@ pub struct WorkerStatus {
     pub accepted: u64,
     pub rejected: u64,
     pub stale: u64,
+    #[serde(skip_deserializing)]
     pub blockfound: u32,
 }
 
