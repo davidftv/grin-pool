@@ -2,7 +2,7 @@ CONTAINER := stratumx
 REGISTRY := docker.mwgrinpool.com:5001
 
 build:
-	cargo build --release
+	OPENSSL_STATIC=yes cargo build --release
 	cp target/release/grin-pool grin-pool
 	#docker build $(DOCKER_BUILD_FLAGS) -t $(CONTAINER) .
 	docker build --network=host $(DOCKER_BUILD_FLAGS) -t $(CONTAINER) .
