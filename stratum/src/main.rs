@@ -32,6 +32,7 @@ extern crate sha2;
 extern crate redis;
 extern crate chrono;
 extern crate r2d2_redis;
+extern crate reqwest;
 
 use bufstream::BufStream;
 use std::error::Error;

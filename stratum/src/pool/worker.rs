@@ -27,11 +27,21 @@ use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime};
 use chrono::prelude::*;
 
 use pool::logger::LOGGER;
-use pool::proto::RpcRequest;
 use pool::proto::{JobTemplate, LoginParams, StratumProtocol, SubmitParams, WorkerStatus,IncrementType};
+use reqwest;
+use std::collections::HashMap;
+
+use pool::proto::{RpcRequest, RpcError};
 
 // ----------------------------------------
 // Worker Object - a connected stratum client - a miner
+//
+
+//#derive(Serialize, Deserialize, Debug)]
+//pub struct AuthForm {
+//    pub username: String,
+//    pub password: String,
+//}
 
 #[derive(Debug)]
 pub struct WorkerConfig {}
@@ -91,10 +101,34 @@ impl Worker {
     pub fn login(&self) -> String {
         match self.login {
             None => "None".to_string(),
-            Some(ref login) => login.login.clone(),
+            Some(ref login) => {
+                let mut loginstr = login.login.clone();
+                return loginstr.to_string();
+            }
         }
     }
+    fn parse(&self,input: &str) -> (String,String) {
+        if input.is_empty() {
+            return ("mineros".to_string(),"noworkid1".to_string())
+        }
+        let parts: Vec<&str> = input.rsplitn(2, '.').collect();
 
+        if parts.len() < 2 {
+            return (parts[0].to_string(),"noworkid2".to_string())
+        }
+
+        (parts[1].to_string(),parts[0].to_string())
+    }
+    pub fn getUserAndWorkId(&self) -> (String,String) {
+        match self.login {
+            None => return ("mineros".to_string(),"noworkid".to_string()),
+            Some(ref login) => {
+                let mut loginstr = login.login.clone();
+                return self.parse(&loginstr);
+            }
+        }
+        ("mineros".to_string(),"noworkid".to_string())
+    }
     pub fn incrCounter(&mut self,ctType: IncrementType) {
         // let s = match ctType {
         //     IncrementType::AC => {self.status.accepted=self.status.accepted+0;"accept"},
@@ -118,15 +152,32 @@ impl Worker {
         // fmt::format("grin:{}:{}:{}",)
         // let _: () = conn.set(formatted_number, self.status.accepted).unwrap();
 
+
+
+        let (username,workid) = self.getUserAndWorkId();
+        trace!(LOGGER, "Worker user info {:?}",(&username,&workid));
+
+
         let conn = self.redpool.clone().unwrap().get().unwrap();
 
+        //daily total value
         let daily_total = format!("grin:{}:{}",dt,s);
         let _: () = conn.incr(daily_total,1).unwrap();
 
-        let daily_user = format!("grin:{}:{}:{}", dt,self.login().clone(),s);
+        //user daily total
+        let daily_user = format!("grin:{}:{}:{}", dt,username,s);
         let _: () = conn.incr(daily_user,1).unwrap();
 
-        let user_day_total = format!("grin:{}:{}:{}", self.login().clone(),dt,s);
+        //user daily miner total
+        // let daily_user = format!("grin:{}:{}:{}:{}", dt,username,workid,s);
+        // let _: () = conn.incr(daily_user,1).unwrap();
+
+        //by user  daily total
+        let user_day_total = format!("grin:{}:{}:{}", username,dt,s);
+        let _: () = conn.incr(user_day_total,1).unwrap();
+
+        //by user daily miner  total
+        let user_day_total = format!("grin:{}:{}:{}:{}", username,dt,workid,s);
         let _: () = conn.incr(user_day_total,1).unwrap();
 
     }
@@ -202,12 +253,12 @@ impl Worker {
         trace!(LOGGER, "Worker {} - sending OK Response", self.id);
         return self.protocol.send_response(
             &mut self.stream,
-            method,
+            method.to_string(),
             serde_json::to_value("ok".to_string()).unwrap(),
             self.id,
         );
     }
-    /// Send OK Response
+    /// Send reject Response
     pub fn send_reject(&mut self, method: String,res: String) -> Result<(), String> {
         trace!(LOGGER, "Worker {} - sending OK Response", self.id);
         return self.protocol.send_response(
@@ -215,6 +266,20 @@ impl Worker {
             method,
             serde_json::to_value(res).unwrap(),
             self.id,
+        );
+    }
+
+    /// Send Err Response
+    pub fn send_err(&mut self, method: String, message: String, code: i32) -> Result<(), String> {
+        trace!(LOGGER, "Worker {} - sending Err Response", self.id);
+        let e = RpcError {
+            code: code,
+            message: message.to_string(),
+        };
+        return self.protocol.send_error_response(
+            &mut self.stream,
+            method.to_string(),
+            e,
         );
     }
     /// Return any pending shares from this worker
@@ -249,6 +314,7 @@ impl Worker {
                             Ok(r) => r,
                             Err(e) => {
                                 self.error = true;
+                                debug!(LOGGER, "Worker {} - Got Invalid Message", self.id);
                                 // XXX TODO: Invalid request
                                 return Err(e.to_string());
                             }
@@ -266,8 +332,14 @@ impl Worker {
                                     Some(p) => p,
                                     None => {
                                         self.error = true;
+                                        debug!(LOGGER, "Worker {} - Missing Login request parameters", self.id);
+                                        return self.send_err(
+                                            "login".to_string(),
+                                            "Missing Login request parameters".to_string(),
+                                            -32500,
+                                        );
                                         // XXX TODO: Invalid request
-                                        return Err("invalid request".to_string());
+                                        //return Err("Invalid Login request".to_string());
                                     }
                                 };
                                 let login_params: LoginParams = match serde_json::from_value(params)
@@ -275,13 +347,19 @@ impl Worker {
                                     Ok(p) => p,
                                     Err(e) => {
                                         self.error = true;
+                                        debug!(LOGGER, "Worker {} - Invalid Login request parameters", self.id);
+                                        return self.send_err(
+                                            "login".to_string(),
+                                            "Invalid Login request parameters".to_string(),
+                                            -32500,
+                                        );
                                         // XXX TODO: Invalid request
-                                        return Err(e.to_string());
+                                        //return Err(e.to_string());
                                     }
                                 };
-                                // XXX TODO: Validate the login - is it a valid grin wallet address?
-                                self.login = Some(login_params);
                                 // We accepted the login, send ok result
+                                debug!(LOGGER, "assign worker[{:?}] to {:?}", self.id,login_params);
+                                self.login = Some(login_params);
                                 self.send_ok(req.method);
                             }
                             "getjobtemplate" => {

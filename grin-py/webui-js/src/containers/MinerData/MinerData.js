@@ -2,26 +2,40 @@ import React, { Component } from 'react'
 import { Row, Col, Table, Alert } from 'reactstrap'
 import { C29_COLOR, C31_COLOR } from '../../custom/custom.js'
 import { MiningGraphConnector } from '../../redux/connectors/MiningGraphConnector.js'
+import { nanoGrinToGrin } from '../../utils/utils.js'
 
 export class MinerDataComponent extends Component {
-  UNSAFE_componentWillMount () {
-    this.fetchMinerData()
-  }
-
-  componentDidUpdate (prevProps) {
-    const { latestBlockHeight } = this.props
-    if (prevProps.latestBlockHeight !== latestBlockHeight) {
-      this.fetchMinerData()
+  constructor (props) {
+    super(props)
+    this.state = {
+      faderStyleId: 'blockHeight1'
     }
   }
 
-  fetchMinerData = () => {
-    const { fetchMinerData } = this.props
+  UNSAFE_componentWillMount () {
+    this.updateData()
+  }
+
+  componentDidUpdate (prevProps) {
+    const { faderStyleId } = this.state
+    const { latestBlockHeight } = this.props
+    if (prevProps.latestBlockHeight !== latestBlockHeight) {
+      this.updateData()
+      this.setState({
+        faderStyleId: faderStyleId === 'blockHeight1' ? 'blockHeight2' : 'blockHeight1'
+      })
+    }
+  }
+
+  updateData = () => {
+    const { fetchMinerData, fetchLatestBlockGrinEarned } = this.props
     fetchMinerData()
+    fetchLatestBlockGrinEarned()
   }
 
   render () {
-    const { minerData, poolBlocksMined } = this.props
+    const { minerData, poolBlocksMined, latestBlockGrinEarned, latestBlock } = this.props
+    const { faderStyleId } = this.state
     const numberOfRecordedBlocks = minerData.length
     const noBlocksAlertSyntax = 'Mining data may take a few minutes to show up after you start mining'
 
@@ -39,6 +53,9 @@ export class MinerDataComponent extends Component {
       c29LatestGraphRate = '0 gps'
       c31LatestGraphRate = '0 gps'
     }
+    const nowTimestamp = Date.now()
+    const latestBlockTimeAgo = latestBlock.timestamp ? Math.floor((nowTimestamp / 1000) - latestBlock.timestamp) : ''
+    const latestBlockGrinEarnedSyntax = (!isNaN(latestBlockGrinEarned) && latestBlockGrinEarned > 0) ? `~ ${nanoGrinToGrin(latestBlockGrinEarned).toFixed(6)} GRIN` : 'n/a'
     return (
       <Row xs={12} md={12} lg={12} xl={12}>
         <Col xs={12} md={12} lg={5} xl={3}>
@@ -50,12 +67,16 @@ export class MinerDataComponent extends Component {
                 <td><span style={{ color: C29_COLOR }}>{c29LatestGraphRate}</span><br /><span style={{ color: C31_COLOR }}>{c31LatestGraphRate}</span></td>
               </tr>
               <tr>
-                <td>Block Found</td>
-                <td>Test</td>
+                <td>Chain Height</td>
+                <td id={faderStyleId}>{latestBlock.height}</td>
               </tr>
               <tr>
-                <td>Blocks Found</td>
-                <td>Test</td>
+                <td>Latest Block Earning</td>
+                <td>{latestBlockGrinEarnedSyntax}</td>
+              </tr>
+              <tr>
+                <td>Last Block Found</td>
+                <td>{latestBlockTimeAgo} sec ago</td>
               </tr>
             </tbody>
           </Table>

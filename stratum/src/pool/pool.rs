@@ -16,7 +16,6 @@ use std::net::{Shutdown, SocketAddr, TcpListener, TcpStream};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::Instant;
 use std::{thread, time};
-use sha2::{Sha256, Digest};
 
 use pool::config::{Config, NodeConfig, PoolConfig, WorkerConfig};
 use pool::logger::LOGGER;
@@ -44,10 +43,10 @@ fn accept_workers(
     let mut worker_id: usize = 0;
     let banned: HashMap<SocketAddr, Instant> = HashMap::new();
     //let client = Client::open("redis://127.0.0.1/").unwrap();
-    let manager = RedisConnectionManager::new("redis://localhost").unwrap();
+    let manager = RedisConnectionManager::new("redis://localhost/1").unwrap();
     let pool = r2d2::Pool::builder().build(manager).unwrap();
 
-    let manager2 = RedisConnectionManager::new("redis://localhost/8").unwrap();
+    let manager2 = RedisConnectionManager::new("redis://localhost/9").unwrap();
     let pool2 = r2d2::Pool::builder().build(manager2).unwrap();
     //println!("{:?}", pool);
     typeid(&pool);
@@ -56,27 +55,37 @@ fn accept_workers(
     for stream in listener.incoming() {
         match stream {
             Ok(stream) => {
-                // XXX ALWAYS DO THIS FIRST - Check if this ip is banned and if so, drop it
-                let worker_addr = stream.peer_addr().unwrap();
-                if banned.contains_key(&worker_addr) {
-                    let _ = stream.shutdown(Shutdown::Both);
-                    continue;
+                match stream.peer_addr() {
+                    Ok(worker_addr) => {
+                        // XXX ALWAYS DO THIS FIRST - Check if this ip is banned and if so, drop it
+                        if banned.contains_key(&worker_addr) {
+                            let _ = stream.shutdown(Shutdown::Both);
+                            continue;
+                        }
+                        warn!(
+                            LOGGER,
+                            "Worker Listener - New connection from ip: {}",
+                            worker_addr
+                        );
+                        stream
+                            .set_nonblocking(true)
+                            .expect("set_nonblocking call failed");
+
+                        let mut worker = Worker::new(worker_id, BufStream::new(stream));
+                        worker.set_difficulty(difficulty);
+                        worker.setRedPool(Some(pool.clone()));
+                        worker.setRedPool2(Some(pool2.clone()));
+                        workers.lock().unwrap().push(worker);
+                        worker_id = worker_id + 1;
+                        // The new worker is now added to the workers list
+                    }
+                    Err(e) => {
+                        warn!(
+                            LOGGER,
+                            "{} - Worker Listener - Error getting wokers ip address: {:?}", id, e
+                        );
+                    }
                 }
-                warn!(
-                    LOGGER,
-                    "{} - Worker Listener - New connection from {}",
-                    id,
-                    stream.peer_addr().unwrap()
-                );
-                stream
-                    .set_nonblocking(true)
-                    .expect("set_nonblocking call failed");
-                let mut worker = Worker::new(worker_id, BufStream::new(stream));
-                worker.set_difficulty(difficulty);
-                worker.setRedPool(Some(pool.clone()));
-                worker.setRedPool2(Some(pool2.clone()));
-                workers.lock().unwrap().push(worker);
-                worker_id = worker_id + 1;
             }
             Err(e) => {
                 warn!(
@@ -99,7 +108,7 @@ pub struct Pool {
     config: Config,
     server: Server,
     workers: Arc<Mutex<Vec<Worker>>>,
-    duplicates: HashMap<Vec<u32>, usize>, // nonce, worker id who first submitted it
+    duplicates: HashMap<Vec<u32>, usize>, // pow vector, worker id who first submitted it
 }
 
 impl Pool {
@@ -150,7 +159,7 @@ impl Pool {
                         LOGGER,
                         "worker[{}], login[{:?}] = status[{:?}], block_status[{:?}], shares[{:?}] ",
                         worker.id,
-                        worker.login(),
+                        worker.getUserAndWorkId(),
                         // serde_json::to_string_pretty(&worker.login).unwrap(),
                         worker.status,
                         worker.block_status,
@@ -317,10 +326,10 @@ impl Pool {
                         self.server.submit_share(&share.clone(), worker.id());
                         warn!(LOGGER, "{} - Got share at height {} with nonce {} with difficulty {} from worker {}",
                                 self.id,
-                                self.job.height,
+                                share.height,
                                 share.nonce,
                                 worker.status.difficulty,
-                                worker.login(),
+                                worker.id,
                         );
                     }
                 }
