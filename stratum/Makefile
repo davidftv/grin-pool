@@ -1,5 +1,5 @@
-CONTAINER := stratumx
-REGISTRY := docker.mwgrinpool.com:5001
+CONTAINER := grinpool/stratum
+REGISTRY := docker.io
 
 build:
 	OPENSSL_STATIC=yes cargo build --release
