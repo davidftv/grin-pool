@@ -54,7 +54,7 @@ pub struct RpcError {
     pub message: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LoginParams {
     pub login: String,
     pub pass: String,
@@ -63,7 +63,7 @@ pub struct LoginParams {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SubmitParams {
-    height: u64,
+    pub height: u64,
     pub job_id: u64,
     pub nonce: u64,
     edge_bits: u32,
