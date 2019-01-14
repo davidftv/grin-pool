@@ -109,12 +109,12 @@ impl Worker {
     }
     fn parse(&self,input: &str) -> (String,String) {
         if input.is_empty() {
-            return ("mineros".to_string(),"noworkid1".to_string())
+            return ("mineros".to_string(),"noworkid".to_string())
         }
         let parts: Vec<&str> = input.rsplitn(2, '.').collect();
 
         if parts.len() < 2 {
-            return (parts[0].to_string(),"noworkid2".to_string())
+            return (parts[0].to_string(),"noworkid".to_string())
         }
 
         (parts[1].to_string(),parts[0].to_string())
