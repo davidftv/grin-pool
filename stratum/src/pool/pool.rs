@@ -27,6 +27,11 @@ use std::time::Duration;
 
 use r2d2_redis::{r2d2, RedisConnectionManager};
 use r2d2_redis::redis::Commands;
+
+use std::io;
+
+
+//use simple_server;
 // ----------------------------------------
 // Worker Connection Thread Function
 // Run in a thread. Adds new connections to the workers list
@@ -218,6 +223,56 @@ impl Pool {
                     //println!("Answer: {}", answer);
                 }
             }
+        });
+        let wks2 = self.workers.clone();
+        thread::spawn(move|| {
+            rouille::start_server("localhost:8800", move |request| {
+                rouille::log(&request, io::stdout(), || {
+                    rouille::router!(request,
+                        (GET) (/allminer) => {
+                            let mut workers_l = wks2.lock().unwrap();
+                            let mut return_vec = vec![];
+                            for worker in workers_l.iter_mut() {
+                                let id = worker.id;
+                                let user = worker.login();
+                                let status = &worker.status;
+                                return_vec.push((id,user,status));
+                            }
+                            let serialized = serde_json::to_string(&return_vec).unwrap();
+                            // When viewing the home page, we return an HTML document described below.
+                            rouille::Response::html(serialized)
+                        },
+                        (GET) (/user/{id: String}) => {
+
+                            let mut workers_l = wks2.lock().unwrap();
+                            let mut return_vec = vec![];
+                            for worker in workers_l.iter_mut() {
+                                let user = worker.login();
+                                if user.contains(&id) {
+                                    let id = worker.id;
+                                    let status = &worker.status;
+                                    return_vec.push((id,user,status));
+                                }
+                            }
+                            let serialized = serde_json::to_string(&return_vec).unwrap();
+                            rouille::Response::html(serialized)
+                        },
+                        (POST) (/submit) => {
+
+                            let data = try_or_400!(post_input!(request, {
+                                txt: String,
+                                files: Vec<rouille::input::post::BufferedFile>,
+                            }));
+
+                            println!("Received data: {:?}", data);
+
+                            rouille::Response::html("Success! <a href=\"/\">Go back</a>.")
+                        },
+
+                        _ => rouille::Response::empty_404()
+                    )
+                })
+            });
         });
         // ------------
         // Main loop

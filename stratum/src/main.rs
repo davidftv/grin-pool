@@ -33,6 +33,9 @@ extern crate redis;
 extern crate chrono;
 extern crate r2d2_redis;
 extern crate reqwest;
+//extern crate simple_server;
+#[macro_use]
+extern crate rouille;
 
 use bufstream::BufStream;
 use std::error::Error;
