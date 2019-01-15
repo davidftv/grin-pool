@@ -224,9 +224,15 @@ impl Pool {
                 }
             }
         });
+
+        let apiport = match env::var("api.port") {
+            Ok(val) => val,
+            Err(_) => "9888".to_string(),
+        };
+        let api_server_addr = "0.0.0.0:".to_string() + &apiport;
         let wks2 = self.workers.clone();
         thread::spawn(move|| {
-            rouille::start_server("localhost:8800", move |request| {
+            rouille::start_server(&api_server_addr, move |request| {
                 rouille::log(&request, io::stdout(), || {
                     rouille::router!(request,
                         (GET) (/allminer) => {
