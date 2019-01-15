@@ -12,7 +12,7 @@ services:
       - s.port=9101
       - api.port=9130
       - stratum_host=192.168.252.54
-      - stratum_port=9200
+      - stratum_port=8200
       - stratum_api=13413
     ports:
       - "9101:9101"
@@ -28,7 +28,7 @@ services:
       - s.port=9110
       - api.port=9140
       - stratum_host=192.168.252.54
-      - stratum_port=9200
+      - stratum_port=8200
       - stratum_api=13413
     ports:
       - "9111:9110"
