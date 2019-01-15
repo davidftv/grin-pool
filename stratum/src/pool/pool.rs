@@ -16,6 +16,7 @@ use std::net::{Shutdown, SocketAddr, TcpListener, TcpStream};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::Instant;
 use std::{thread, time};
+use std::env;
 
 use pool::config::{Config, NodeConfig, PoolConfig, WorkerConfig};
 use pool::logger::LOGGER;
@@ -42,11 +43,21 @@ fn accept_workers(
     let listener = TcpListener::bind(address).expect("Failed to bind to listen address");
     let mut worker_id: usize = 0;
     let banned: HashMap<SocketAddr, Instant> = HashMap::new();
+    let k = match env::var("redis_port_base") {
+        Ok(val) => val.parse().unwrap(),
+        Err(_) => 0,
+    };
+
+    let redis_url = "redis://localhost";
+    let redis_stats = format!("{}/{}", redis_url,k);
+    let redis_block = format!("{}/{}", redis_url,k+8);
+
+
     //let client = Client::open("redis://127.0.0.1/").unwrap();
-    let manager = RedisConnectionManager::new("redis://localhost/1").unwrap();
+    let manager = RedisConnectionManager::new(redis_stats.as_str()).unwrap();
     let pool = r2d2::Pool::builder().build(manager).unwrap();
 
-    let manager2 = RedisConnectionManager::new("redis://localhost/9").unwrap();
+    let manager2 = RedisConnectionManager::new(redis_block.as_str()).unwrap();
     let pool2 = r2d2::Pool::builder().build(manager2).unwrap();
     //println!("{:?}", pool);
     typeid(&pool);
@@ -130,16 +141,35 @@ impl Pool {
     /// Run the Pool
     pub fn run(&mut self) {
         // Start a thread for each listen port to accept new worker connections
-        for port_difficulty in &self.config.workers.port_difficulty {
-            let mut workers_th = self.workers.clone();
-            let id_th = self.id.clone();
-            let address_th = self.config.workers.listen_address.clone() + ":"
-                + &port_difficulty.port.to_string();
-            let difficulty_th = port_difficulty.difficulty;
-            let _listener_th = thread::spawn(move || {
-                accept_workers(id_th, address_th, difficulty_th, &mut workers_th);
-            });
-        }
+        // for port_difficulty in &self.config.workers.port_difficulty {
+        //     let mut workers_th = self.workers.clone();
+        //     let id_th = self.id.clone();
+        //     let address_th = self.config.workers.listen_address.clone() + ":"
+        //         + &port_difficulty.port.to_string();
+        //     let difficulty_th = port_difficulty.difficulty;
+        //     let _listener_th = thread::spawn(move || {
+        //         accept_workers(id_th, address_th, difficulty_th, &mut workers_th);
+        //     });
+        // }
+
+        let sdiff = match env::var("s.diff_number") {
+            Ok(val) => val.parse().unwrap(),
+            Err(_) => 1,
+        };
+
+        let sport = match env::var("s.port") {
+            Ok(val) => val,
+            Err(_) => "9103".to_string(),
+        };
+
+        let mut workers_th = self.workers.clone();
+        let id_th = self.id.clone();
+        let address_th = "0.0.0.0:".to_string() + &sport;
+        let difficulty_th = sdiff;
+        let _listener_th = thread::spawn(move || {
+            accept_workers(id_th, address_th, difficulty_th, &mut workers_th);
+        });
+
         let wks = self.workers.clone();
         thread::spawn(move|| {
             // let client = Client::open("redis://127.0.0.1/").unwrap();
