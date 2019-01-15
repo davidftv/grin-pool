@@ -28,7 +28,7 @@ use pool::logger::LOGGER;
 use pool::proto::{JobTemplate, LoginParams, RpcError, StratumProtocol, SubmitParams, WorkerStatus};
 use pool::proto::{RpcRequest, RpcResponse};
 use pool::worker::Worker;
-
+use std::env;
 // ----------------------------------------
 // Server Object - our connection to a stratum server - a grin node
 
@@ -63,8 +63,21 @@ impl Server {
         if !self.error && self.stream.is_some() {
             return Ok(());
         }
-        let grin_stratum_url = self.config.grin_node.address.clone() + ":"
-            + &self.config.grin_node.stratum_port.to_string();
+
+        let stratum_host = match env::var("stratum_host") {
+            Ok(val) => val,
+            Err(_) => "127.0.0.1".to_string(),
+        };
+
+        let stratum_port = match env::var("stratum_port") {
+            Ok(val) => val.parse().unwrap(),
+            Err(_) => 9200,
+        };
+
+        // let grin_stratum_url = self.config.grin_node.address.clone() + ":"
+        //     + &self.config.grin_node.stratum_port.to_string();
+        let grin_stratum_url = format!("{}:{}", stratum_host,stratum_port);
+
         warn!(
             LOGGER,
             "{} - Connecting to upstream stratum server at {}",
