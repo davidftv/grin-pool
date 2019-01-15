@@ -184,7 +184,7 @@ impl Pool {
             //let _ : () = try!(con.set("my_key", 42));
             //con.get("my_key")
             loop {
-                thread::sleep(Duration::from_secs(10));
+                thread::sleep(Duration::from_secs(20));
                 //let mut workers_th = self.workers.clone();
                 warn!(
                     LOGGER,
@@ -193,15 +193,22 @@ impl Pool {
                 );
                 let mut workers_l = wks.lock().unwrap();
                 for worker in workers_l.iter_mut() {
-                    warn!(
+                    // warn!(
+                    //     LOGGER,
+                    //     "worker[{}], login[{:?}] = status[{:?}], block_status[{:?}], shares[{:?}] ",
+                    //     worker.id,
+                    //     worker.getUserAndWorkId(),
+                    //     // serde_json::to_string_pretty(&worker.login).unwrap(),
+                    //     worker.status,
+                    //     worker.block_status,
+                    //     worker.shares
+                    // );
+                    println!(
                         LOGGER,
-                        "worker[{}], login[{:?}] = status[{:?}], block_status[{:?}], shares[{:?}] ",
+                        "worker[{}]:login[{:?}] = status[{:?}] ",
                         worker.id,
                         worker.getUserAndWorkId(),
-                        // serde_json::to_string_pretty(&worker.login).unwrap(),
                         worker.status,
-                        worker.block_status,
-                        worker.shares
                     );
                     // let conn = client.get_connection().unwrap();
                     // let now: DateTime<Utc> = Utc::now();
