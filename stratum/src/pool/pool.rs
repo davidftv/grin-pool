@@ -77,15 +77,15 @@ fn accept_workers(
                 match stream.peer_addr() {
                     Ok(worker_addr) => {
                         // XXX ALWAYS DO THIS FIRST - Check if this ip is banned and if so, drop it
-                        if banned.contains_key(&worker_addr) {
-                            let _ = stream.shutdown(Shutdown::Both);
-                            continue;
-                        }
-                        warn!(
-                            LOGGER,
-                            "Worker Listener - New connection from ip: {}",
-                            worker_addr
-                        );
+                        // if banned.contains_key(&worker_addr) {
+                        //     let _ = stream.shutdown(Shutdown::Both);
+                        //     continue;
+                        // }
+                        // warn!(
+                        //     LOGGER,
+                        //     "Worker Listener - New connection from ip: {}",
+                        //     worker_addr
+                        // );
                         stream
                             .set_nonblocking(true)
                             .expect("set_nonblocking call failed");
