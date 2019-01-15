@@ -247,7 +247,7 @@ impl Pool {
                                 sbuf.push_str(user.as_str());
                                 sbuf.push_str(",");
                                 sbuf.push_str(serde_json::to_string(status).unwrap().as_str());
-                                sbuf.push_str("\n");
+                                sbuf.push_str(" - &nbsp\n");
                             }
                             //let serialized = serde_json::to_string(&return_vec).unwrap();
                             // When viewing the home page, we return an HTML document described below.
@@ -267,7 +267,7 @@ impl Pool {
                                     sbuf.push_str(user.as_str());
                                     sbuf.push_str(",");
                                     sbuf.push_str(serde_json::to_string(status).unwrap().as_str());
-                                    sbuf.push_str("\n");
+                                    sbuf.push_str(" - &nbsp\n");
                                 }
                             }
                             //let serialized = serde_json::to_string(&return_vec).unwrap();
