@@ -6,6 +6,7 @@ services:
     network_mode: "host"
     hostname: "stratum"
     environment:
+      - redis_host=192.168.252.54
       - redis_port_base=0
       - s.diff_number=1
       - s.port=9106

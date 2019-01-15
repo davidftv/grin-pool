@@ -43,14 +43,20 @@ fn accept_workers(
     let listener = TcpListener::bind(address).expect("Failed to bind to listen address");
     let mut worker_id: usize = 0;
     let banned: HashMap<SocketAddr, Instant> = HashMap::new();
+
+    let redishost = match env::var("redis_host") {
+        Ok(val) => val,
+        Err(_) => "127.0.0.1".to_string(),
+    };
+
     let k = match env::var("redis_port_base") {
         Ok(val) => val.parse().unwrap(),
         Err(_) => 0,
     };
 
-    let redis_url = "redis://localhost";
-    let redis_stats = format!("{}/{}", redis_url,k);
-    let redis_block = format!("{}/{}", redis_url,k+8);
+    let redis_url = "redis://";
+    let redis_stats = format!("{}/{}/{}", redis_url,redishost,k);
+    let redis_block = format!("{}/{}/{}", redis_url,redishost,k+8);
 
 
     //let client = Client::open("redis://127.0.0.1/").unwrap();
