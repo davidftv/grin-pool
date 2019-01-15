@@ -54,9 +54,11 @@ fn accept_workers(
         Err(_) => 0,
     };
 
-    let redis_url = "redis://";
-    let redis_stats = format!("{}/{}/{}", redis_url,redishost,k);
-    let redis_block = format!("{}/{}/{}", redis_url,redishost,k+8);
+    let redis_stats = format!("redis://{}/{}", redishost,k);
+    let redis_block = format!("redis://{}/{}", redishost,k+8);
+
+    println!("{:?}",redis_stats);
+    println!("{:?}",redis_block);
 
 
     //let client = Client::open("redis://127.0.0.1/").unwrap();
