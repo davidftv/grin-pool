@@ -237,31 +237,41 @@ impl Pool {
                     rouille::router!(request,
                         (GET) (/allminer) => {
                             let mut workers_l = wks2.lock().unwrap();
-                            let mut return_vec = vec![];
+                            //let mut return_vec = vec![];
+                            let mut sbuf = String::from("");
                             for worker in workers_l.iter_mut() {
                                 let id = worker.id;
                                 let user = worker.login();
                                 let status = &worker.status;
-                                return_vec.push((id,user,status));
+                                //return_vec.push((id,user,status));
+                                sbuf.push_str(user.as_str());
+                                sbuf.push_str(",");
+                                sbuf.push_str(serde_json::to_string(status).unwrap().as_str());
+                                sbuf.push_str("\n");
                             }
-                            let serialized = serde_json::to_string(&return_vec).unwrap();
+                            //let serialized = serde_json::to_string(&return_vec).unwrap();
                             // When viewing the home page, we return an HTML document described below.
-                            rouille::Response::html(serialized)
+                            rouille::Response::html(sbuf)
                         },
                         (GET) (/user/{id: String}) => {
 
                             let mut workers_l = wks2.lock().unwrap();
-                            let mut return_vec = vec![];
+                            // let mut return_vec = vec![];
+                            let mut sbuf = String::from("");
                             for worker in workers_l.iter_mut() {
                                 let user = worker.login();
                                 if user.contains(&id) {
                                     let id = worker.id;
                                     let status = &worker.status;
-                                    return_vec.push((id,user,status));
+                                    // return_vec.push((id,user,status));
+                                    sbuf.push_str(user.as_str());
+                                    sbuf.push_str(",");
+                                    sbuf.push_str(serde_json::to_string(status).unwrap().as_str());
+                                    sbuf.push_str("\n");
                                 }
                             }
-                            let serialized = serde_json::to_string(&return_vec).unwrap();
-                            rouille::Response::html(serialized)
+                            //let serialized = serde_json::to_string(&return_vec).unwrap();
+                            rouille::Response::html(sbuf)
                         },
                         (POST) (/submit) => {
 
