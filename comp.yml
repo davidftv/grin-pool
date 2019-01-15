@@ -9,6 +9,20 @@ services:
       - redis_host=192.168.252.54
       - redis_port_base=0
       - s.diff_number=1
-      - s.port=9106
+      - s.port=9101
+      - api.port=9898
     ports:
-      - "9106:9106"
+      - "9101:9101"
+  stratum10:
+    image: docker.io/grinpool/stratum:latest
+    restart: always
+    network_mode: "host"
+    hostname: "stratum10"
+    environment:
+      - redis_host=192.168.252.54
+      - redis_port_base=3
+      - s.diff_number=1
+      - s.port=9110
+      - api.port=9898
+    ports:
+      - "9111:9110"
