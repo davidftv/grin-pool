@@ -10,7 +10,7 @@ services:
       - redis_port_base=0
       - s.diff_number=1
       - s.port=9101
-      - api.port=9898
+      - api.port=9130
     ports:
       - "9101:9101"
   stratum10:
@@ -23,6 +23,6 @@ services:
       - redis_port_base=3
       - s.diff_number=1
       - s.port=9110
-      - api.port=9898
+      - api.port=9140
     ports:
       - "9111:9110"
