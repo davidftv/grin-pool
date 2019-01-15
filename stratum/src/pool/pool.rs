@@ -204,7 +204,6 @@ impl Pool {
                     //     worker.shares
                     // );
                     println!(
-                        LOGGER,
                         "worker[{}]:login[{:?}] = status[{:?}] ",
                         worker.id,
                         worker.getUserAndWorkId(),
