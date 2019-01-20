@@ -183,47 +183,47 @@ impl Pool {
             accept_workers(id_th, address_th, difficulty_th, &mut workers_th);
         });
 
-        let wks = self.workers.clone();
-        thread::spawn(move|| {
-            // let client = Client::open("redis://127.0.0.1/").unwrap();
-            //let _ : () = try!(con.set("my_key", 42));
-            //con.get("my_key")
-            loop {
-                thread::sleep(Duration::from_secs(20));
-                //let mut workers_th = self.workers.clone();
-                warn!(
-                    LOGGER,
-                    "there are {} number of connected miner rigs",
-                    wks.lock().unwrap().len()
-                );
-                let mut workers_l = wks.lock().unwrap();
-                for worker in workers_l.iter_mut() {
-                    // warn!(
-                    //     LOGGER,
-                    //     "worker[{}], login[{:?}] = status[{:?}], block_status[{:?}], shares[{:?}] ",
-                    //     worker.id,
-                    //     worker.getUserAndWorkId(),
-                    //     // serde_json::to_string_pretty(&worker.login).unwrap(),
-                    //     worker.status,
-                    //     worker.block_status,
-                    //     worker.shares
-                    // );
-                    println!(
-                        "worker[{}]:login[{:?}] = status[{:?}] ",
-                        worker.id,
-                        worker.getUserAndWorkId(),
-                        worker.status,
-                    );
-                    // let conn = client.get_connection().unwrap();
-                    // let now: DateTime<Utc> = Utc::now();
-                    // let curtime = now.format("%a %b %e %T %Y");
-                    // fmt::format("grin:{}:{}:{}",)
-                    // let _: () = conn.set("ssss".to_string()+&worker.login().clone(), worker.status.accepted).unwrap();
-                    //let answer: int = conn.get("answer").unwrap();
-                    //println!("Answer: {}", answer);
-                }
-            }
-        });
+        // let wks = self.workers.clone();
+        // thread::spawn(move|| {
+        //     // let client = Client::open("redis://127.0.0.1/").unwrap();
+        //     //let _ : () = try!(con.set("my_key", 42));
+        //     //con.get("my_key")
+        //     loop {
+        //         thread::sleep(Duration::from_secs(20));
+        //         //let mut workers_th = self.workers.clone();
+        //         warn!(
+        //             LOGGER,
+        //             "there are {} number of connected miner rigs",
+        //             wks.lock().unwrap().len()
+        //         );
+        //         let mut workers_l = wks.lock().unwrap();
+        //         for worker in workers_l.iter_mut() {
+        //             // warn!(
+        //             //     LOGGER,
+        //             //     "worker[{}], login[{:?}] = status[{:?}], block_status[{:?}], shares[{:?}] ",
+        //             //     worker.id,
+        //             //     worker.getUserAndWorkId(),
+        //             //     // serde_json::to_string_pretty(&worker.login).unwrap(),
+        //             //     worker.status,
+        //             //     worker.block_status,
+        //             //     worker.shares
+        //             // );
+        //             println!(
+        //                 "worker[{}]:login[{:?}] = status[{:?}] ",
+        //                 worker.id,
+        //                 worker.getUserAndWorkId(),
+        //                 worker.status,
+        //             );
+        //             // let conn = client.get_connection().unwrap();
+        //             // let now: DateTime<Utc> = Utc::now();
+        //             // let curtime = now.format("%a %b %e %T %Y");
+        //             // fmt::format("grin:{}:{}:{}",)
+        //             // let _: () = conn.set("ssss".to_string()+&worker.login().clone(), worker.status.accepted).unwrap();
+        //             //let answer: int = conn.get("answer").unwrap();
+        //             //println!("Answer: {}", answer);
+        //         }
+        //     }
+        // });
 
         let apiport = match env::var("api.port") {
             Ok(val) => val,
@@ -290,6 +290,7 @@ impl Pool {
                 })
             });
         });
+
         // ------------
         // Main loop
         loop {
