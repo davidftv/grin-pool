@@ -19,9 +19,9 @@
 use bufstream::BufStream;
 use serde_json;
 use serde_json::Value;
-use std::net::{Shutdown, TcpStream};
-use std::sync::{Arc, Mutex, RwLock};
-use std::{thread, time};
+use std::net::{ TcpStream};
+use std::sync::{Arc, Mutex};
+//use std::{thread, time};
 
 use pool::config::{Config, NodeConfig, PoolConfig, WorkerConfig};
 use pool::logger::LOGGER;
@@ -29,8 +29,16 @@ use pool::proto::{JobTemplate, LoginParams, RpcError, StratumProtocol, SubmitPar
 use pool::proto::{RpcRequest, RpcResponse};
 use pool::worker::Worker;
 use std::env;
+
+use r2d2_redis::{r2d2, RedisConnectionManager};
+use r2d2_redis::r2d2::Pool as RDPool;
+use r2d2_redis::r2d2::ManageConnection;
+use redis::Commands;
+use redis::FromRedisValue;
+
 // ----------------------------------------
 // Server Object - our connection to a stratum server - a grin node
+
 
 pub struct Server {
     id: String,
@@ -40,6 +48,7 @@ pub struct Server {
     error: bool,
     pub job: JobTemplate,
     status: WorkerStatus,
+    pub redpool: Option<RDPool<RedisConnectionManager>>,
 }
 
 impl Server {
@@ -53,7 +62,12 @@ impl Server {
             error: false,
             job: JobTemplate::new(),
             status: WorkerStatus::new("Pool".to_string()),
+            redpool: None,
         }
+    }
+
+    pub fn run(&mut self){
+        println!("running");
     }
 
     /// Connect to an upstream Grin Stratum Server
@@ -170,6 +184,13 @@ impl Server {
         }
     }
 
+    pub fn job_notify(&mut self){
+        let conn = self.redpool.clone().unwrap().get().unwrap();
+        //let job_value = serde_json::to_value(self.job).unwrap();
+        //conn.publish("jobs:grin", "xxx").unwrap();
+        let _: () = conn.publish("boo", 5).unwrap();
+    }
+
     /// Submit a workers share as a valid POW solution
     pub fn submit_share(
         &mut self,
@@ -240,6 +261,7 @@ impl Server {
                                 let v: serde_json::Value = serde_json::from_str(&message).unwrap();
                                 // Is this a response or request?
                                 // XXX TODO: Is there a better way? Introspection? Check Value for field?
+                                let mut workers_l = workers.lock().unwrap();
                                 if v["id"] == String::from("Stratum") {
                                     // this is a request
                                     let req: RpcRequest = serde_json::from_str(&message).unwrap();
@@ -258,9 +280,13 @@ impl Server {
                                                 "{} - Setting new job for height {} job_id {}",
                                                 self.id,
                                                 job.height,
-						job.job_id,
+						                        job.job_id,
                                             );
                                             self.job = job;
+                                            if workers_l.len()>0{
+                                                workers_l[0].job_notify(&self.job);
+                                            }
+                                            //workers_l.get(0).unwrap().job_notify();
                                             return Ok(req.method.clone());
                                         }
                                         _ => {
@@ -288,7 +314,6 @@ impl Server {
                                     // The pool made this request and it will handle responses (so return the results back up)
                                     let res: RpcResponse = serde_json::from_str(&message).unwrap();
                                     debug!(LOGGER, "{} - Received response {:?}", self.id, res);
-                                    let mut workers_l = workers.lock().unwrap();
                                     // Get the worker index this response is for
                                     let w_id_usz: usize = match res.id.parse::<usize>() {
                                         Ok(id) => id,

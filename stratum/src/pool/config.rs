@@ -26,11 +26,11 @@ pub struct Config {
     pub workers: WorkerConfig,
 }
 
-#[derive(Debug, Deserialize, Clone)]
-pub struct PortDifficulty {
-    pub port: u64,
-    pub difficulty: u64,
-}
+// #[derive(Debug, Deserialize, Clone)]
+// pub struct PortDifficulty {
+//     pub port: u64,
+//     pub difficulty: u64,
+// }
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct PoolConfig {
@@ -40,7 +40,17 @@ pub struct PoolConfig {
 #[derive(Debug, Deserialize, Clone)]
 pub struct WorkerConfig {
     pub listen_address: String,
-    pub port_difficulty: Vec<PortDifficulty>,
+    pub port_len: i32,
+    pub port_start: i32,
+    pub diff_start: u64,
+    pub diff_coef: u64,
+    pub pool_api_port: u32,
+
+    pub redis_host: String,
+    pub redis_port: i32,
+    pub redis_db: i32,
+
+    //pub port_difficulty: Vec<PortDifficulty>,
 }
 
 #[derive(Debug, Deserialize, Clone)]

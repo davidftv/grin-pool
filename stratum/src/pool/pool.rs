@@ -12,21 +12,27 @@
 // limitations under the License.
 use bufstream::BufStream;
 use std::collections::HashMap;
-use std::net::{Shutdown, SocketAddr, TcpListener, TcpStream};
-use std::sync::{Arc, Mutex, RwLock};
+use std::net::{SocketAddr, TcpListener};
+use std::sync::{Arc, Mutex}; //, RwLock
 use std::time::Instant;
 use std::{thread, time};
 use std::env;
 
-use pool::config::{Config, NodeConfig, PoolConfig, WorkerConfig};
+//use pool::config::{Config, NodeConfig, PoolConfig, WorkerConfig};
+use pool::config::{Config};
 use pool::logger::LOGGER;
 use pool::proto::{JobTemplate, RpcError, SubmitParams};
 use pool::server::Server;
 use pool::worker::Worker;
-use std::time::Duration;
+//use std::time::Duration;
+
+use r2d2_redis::redis::{Commands,PubSubCommands, ControlFlow};
 
 use r2d2_redis::{r2d2, RedisConnectionManager};
-use r2d2_redis::redis::Commands;
+use r2d2_redis::r2d2::Pool as RDPool;
+use r2d2_redis::r2d2::ManageConnection;
+use redis::FromRedisValue;
+//use redis::{PubSubCommands, ControlFlow};
 
 use std::io;
 
@@ -44,64 +50,26 @@ fn accept_workers(
     address: String,
     difficulty: u64,
     workers: &mut Arc<Mutex<Vec<Worker>>>,
+    redpool: &mut RDPool<RedisConnectionManager>,
 ) {
     let listener = TcpListener::bind(address).expect("Failed to bind to listen address");
     let mut worker_id: usize = 0;
     let banned: HashMap<SocketAddr, Instant> = HashMap::new();
-
-    let redishost = match env::var("redis_host") {
-        Ok(val) => val,
-        Err(_) => "127.0.0.1".to_string(),
-    };
-
-    let k = match env::var("redis_port_base") {
-        Ok(val) => val.parse().unwrap(),
-        Err(_) => 0,
-    };
-
-    let redis_stats = format!("redis://{}/{}", redishost,k);
-    let redis_block = format!("redis://{}/{}", redishost,k+8);
-
-    println!("{:?}",redis_stats);
-    println!("{:?}",redis_block);
-
-
-    //let client = Client::open("redis://127.0.0.1/").unwrap();
-    let manager = RedisConnectionManager::new(redis_stats.as_str()).unwrap();
-    let pool = r2d2::Pool::builder().build(manager).unwrap();
-
-    let manager2 = RedisConnectionManager::new(redis_block.as_str()).unwrap();
-    let pool2 = r2d2::Pool::builder().build(manager2).unwrap();
-    //println!("{:?}", pool);
-    typeid(&pool);
-
     // XXX TODO: Call the pool-api to get a list of banned IPs, refresh that list sometimes
     for stream in listener.incoming() {
         match stream {
             Ok(stream) => {
                 match stream.peer_addr() {
                     Ok(worker_addr) => {
-                        // XXX ALWAYS DO THIS FIRST - Check if this ip is banned and if so, drop it
-                        // if banned.contains_key(&worker_addr) {
-                        //     let _ = stream.shutdown(Shutdown::Both);
-                        //     continue;
-                        // }
-                        // warn!(
-                        //     LOGGER,
-                        //     "Worker Listener - New connection from ip: {}",
-                        //     worker_addr
-                        // );
                         stream
                             .set_nonblocking(true)
                             .expect("set_nonblocking call failed");
-
                         let mut worker = Worker::new(worker_id, BufStream::new(stream));
                         worker.set_difficulty(difficulty);
-                        worker.setRedPool(Some(pool.clone()));
-                        worker.setRedPool2(Some(pool2.clone()));
+                        worker.setRedPool(Some(redpool.clone()));
+                        worker.clientip = Some(worker_addr.to_string());
                         workers.lock().unwrap().push(worker);
                         worker_id = worker_id + 1;
-                        // The new worker is now added to the workers list
                     }
                     Err(e) => {
                         warn!(
@@ -133,6 +101,7 @@ pub struct Pool {
     server: Server,
     workers: Arc<Mutex<Vec<Worker>>>,
     duplicates: HashMap<Vec<u32>, usize>, // pow vector, worker id who first submitted it
+    redispool: Option<RDPool<RedisConnectionManager>>,
 }
 
 impl Pool {
@@ -145,91 +114,63 @@ impl Pool {
             server: Server::new(config.clone()),
             workers: Arc::new(Mutex::new(Vec::new())),
             duplicates: HashMap::new(),
+            redispool: None,
         }
-    }
-    fn generateRedisKey(&mut self,user : &String) -> String {
-        return "ssss".to_string()+user;
     }
 
     /// Run the Pool
     pub fn run(&mut self) {
         // Start a thread for each listen port to accept new worker connections
-        // for port_difficulty in &self.config.workers.port_difficulty {
-        //     let mut workers_th = self.workers.clone();
-        //     let id_th = self.id.clone();
-        //     let address_th = self.config.workers.listen_address.clone() + ":"
-        //         + &port_difficulty.port.to_string();
-        //     let difficulty_th = port_difficulty.difficulty;
-        //     let _listener_th = thread::spawn(move || {
-        //         accept_workers(id_th, address_th, difficulty_th, &mut workers_th);
-        //     });
-        // }
 
-        let sdiff = match env::var("s.diff_number") {
-            Ok(val) => val.parse().unwrap(),
-            Err(_) => 1,
-        };
 
-        let sport = match env::var("s.port") {
-            Ok(val) => val,
-            Err(_) => "9103".to_string(),
-        };
+        let redis_host = self.config.workers.redis_host.clone();
+        let redis_port = self.config.workers.redis_port;
+        let redis_db = self.config.workers.redis_db;
 
-        let mut workers_th = self.workers.clone();
-        let id_th = self.id.clone();
-        let address_th = "0.0.0.0:".to_string() + &sport;
-        let difficulty_th = sdiff;
-        let _listener_th = thread::spawn(move || {
-            accept_workers(id_th, address_th, difficulty_th, &mut workers_th);
-        });
+        let redis_stats = format!("redis://{}:{}/{}", redis_host,redis_port,redis_db);
 
-        // let wks = self.workers.clone();
-        // thread::spawn(move|| {
-        //     // let client = Client::open("redis://127.0.0.1/").unwrap();
-        //     //let _ : () = try!(con.set("my_key", 42));
-        //     //con.get("my_key")
-        //     loop {
-        //         thread::sleep(Duration::from_secs(20));
-        //         //let mut workers_th = self.workers.clone();
-        //         warn!(
-        //             LOGGER,
-        //             "there are {} number of connected miner rigs",
-        //             wks.lock().unwrap().len()
-        //         );
-        //         let mut workers_l = wks.lock().unwrap();
-        //         for worker in workers_l.iter_mut() {
-        //             // warn!(
-        //             //     LOGGER,
-        //             //     "worker[{}], login[{:?}] = status[{:?}], block_status[{:?}], shares[{:?}] ",
-        //             //     worker.id,
-        //             //     worker.getUserAndWorkId(),
-        //             //     // serde_json::to_string_pretty(&worker.login).unwrap(),
-        //             //     worker.status,
-        //             //     worker.block_status,
-        //             //     worker.shares
-        //             // );
-        //             println!(
-        //                 "worker[{}]:login[{:?}] = status[{:?}] ",
-        //                 worker.id,
-        //                 worker.getUserAndWorkId(),
-        //                 worker.status,
-        //             );
-        //             // let conn = client.get_connection().unwrap();
-        //             // let now: DateTime<Utc> = Utc::now();
-        //             // let curtime = now.format("%a %b %e %T %Y");
-        //             // fmt::format("grin:{}:{}:{}",)
-        //             // let _: () = conn.set("ssss".to_string()+&worker.login().clone(), worker.status.accepted).unwrap();
-        //             //let answer: int = conn.get("answer").unwrap();
-        //             //println!("Answer: {}", answer);
-        //         }
-        //     }
+        println!("{:?}",redis_stats);
+
+        //let client = Client::open("redis://127.0.0.1/").unwrap();
+        let manager = RedisConnectionManager::new(redis_stats.as_str()).unwrap();
+        let pool = r2d2::Pool::builder().build(manager).unwrap();
+        self.redispool = Some(pool.clone());
+        self.server.redpool =  Some(pool.clone());
+
+        //let mut server_workers = self.workers.clone();
+        // thread::spawn(move || {
+        //     self.server.run();
         // });
 
-        let apiport = match env::var("api.port") {
-            Ok(val) => val,
-            Err(_) => "9888".to_string(),
-        };
-        let api_server_addr = "0.0.0.0:".to_string() + &apiport;
+        let port_len = self.config.workers.port_len;
+        let port_start = self.config.workers.port_start;
+
+        let diff_start = self.config.workers.diff_start;
+        let diff_coef = self.config.workers.diff_coef;
+
+        for i in 0..port_len {
+            let mut redpool = pool.clone();
+            let mut workers_th = self.workers.clone();
+            let id_th = self.id.clone();
+            let port = port_start+i*2;
+            let address_th = format!("{}:{}", self.config.workers.listen_address.clone(),port);
+
+            let difficulty_th = diff_start*diff_coef;
+            let _listener_th = thread::spawn(move || {
+                accept_workers(id_th, address_th, difficulty_th, &mut workers_th,&mut redpool);
+            });
+        }
+
+
+        // let apiport = match env::var("api.port") {
+        //     Ok(val) => val,
+        //     Err(_) => "9888".to_string(),
+        // };
+
+
+        let apiport = self.config.workers.pool_api_port;
+
+        let api_server_addr = format!("{}:{}", "0.0.0.0",apiport);
         let wks2 = self.workers.clone();
         thread::spawn(move|| {
             rouille::start_server(&api_server_addr, move |request| {
@@ -291,12 +232,45 @@ impl Pool {
             });
         });
 
+        let wks3 = self.workers.clone();
+        let rpool1 = self.redispool.clone();
+        let curJob = self.job.clone();
+        thread::spawn(move|| {
+            let mut conn = rpool1.unwrap().get().unwrap();
+            // let mut pubsub = conn.as_pubsub();
+            // pubsub.subscribe("jobs:grin");
+            let mut count = 0;
+            loop {
+                conn.subscribe(&["jobs:grin"], |msg| {
+                    let ch = msg.get_channel_name();
+                    count += 1;
+                    let payload: String = msg.get_payload().unwrap();
+                    match payload.as_ref() {
+                        "10" => ControlFlow::Break(()),
+                        a => {
+                            let mut workers_l = wks3.lock().unwrap();
+                            println!("Channel '{}' received '{}'.", ch, a);
+                            let mut job: JobTemplate = serde_json::from_str(a).unwrap();
+                            if curJob.pre_pow != job.pre_pow || job.height>curJob.height {
+                                //self.job = job.clone();
+                                for worker in workers_l.iter_mut() {
+                                    if worker.needs_job {
+                                        worker.send_job(&mut job.clone());
+                                    }
+                                }
+                            }else{
+                                println!("dup: Channel '{}' received '{}'.", ch, a);
+                            }
+                            ControlFlow::Continue
+                        }
+                    }
+                }).unwrap();
+                thread::sleep(time::Duration::from_millis(50));
+            }
+        });
         // ------------
         // Main loop
         loop {
-            // XXX TODO: Error checking
-
-            // (re)connect if server is not connected or is in error state
             match self.server.connect() {
                 Ok(_) => {}
                 Err(e) => {
@@ -322,7 +296,7 @@ impl Pool {
             let _ = self.process_shares();
 
             // Send jobs to needy workers
-            let _ = self.send_jobs();
+            //let _ = self.send_jobs();
 
             // Delete workers in error state
             let _num_active_workers = self.clean_workers();

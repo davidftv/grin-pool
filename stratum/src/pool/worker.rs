@@ -15,21 +15,23 @@
 //!
 //! A single mining worker (the pool manages a vec of Workers)
 //!
-use redis::{Client, Commands, Connection, RedisResult};
-use r2d2_redis::{r2d2, redis, RedisConnectionManager};
+//use redis::{Client, Commands, Connection, RedisResult};
+use redis::{ Commands};
+//use r2d2_redis::{r2d2, redis, RedisConnectionManager};
+use r2d2_redis::{RedisConnectionManager};
 use r2d2_redis::r2d2::Pool;
-use r2d2_redis::r2d2::ManageConnection;
+//use r2d2_redis::r2d2::ManageConnection;
 use bufstream::BufStream;
 use serde_json;
 use serde_json::Value;
 use std::net::TcpStream;
-use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime};
+//use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime};
 use chrono::prelude::*;
 
 use pool::logger::LOGGER;
 use pool::proto::{JobTemplate, LoginParams, StratumProtocol, SubmitParams, WorkerStatus,IncrementType};
-use reqwest;
-use std::collections::HashMap;
+//use reqwest;
+//use std::collections::HashMap;
 
 use pool::proto::{RpcRequest, RpcError};
 
@@ -58,7 +60,7 @@ pub struct Worker {
     pub shares: Vec<SubmitParams>,
     pub needs_job: bool,
     pub redpool: Option<Pool<RedisConnectionManager>>,
-    pub redpool2: Option<Pool<RedisConnectionManager>>,
+    pub clientip: Option<String>,
 }
 
 impl Worker {
@@ -76,16 +78,14 @@ impl Worker {
             shares: Vec::new(),
             needs_job: true,
             redpool: None,
-            redpool2: None,
+            clientip: None,
         }
     }
 
     pub fn setRedPool(&mut self, p: Option<Pool<RedisConnectionManager>>){
         self.redpool = p;
     }
-    pub fn setRedPool2(&mut self, p: Option<Pool<RedisConnectionManager>>){
-       self.redpool2 = p;
-    }
+
 
     /// Is the worker in error state?
     pub fn error(&self) -> bool {
@@ -127,7 +127,7 @@ impl Worker {
                 return self.parse(&loginstr);
             }
         }
-        ("mineros".to_string(),"noworkid".to_string())
+        //("mineros".to_string(),"noworkid".to_string())
     }
     pub fn incrCounter(&mut self,ctType: IncrementType) {
         // let s = match ctType {
@@ -181,12 +181,18 @@ impl Worker {
         let _: () = conn.incr(user_day_total,1).unwrap();
 
     }
-
+    pub fn job_notify(&mut self,job: &JobTemplate){
+        let conn = self.redpool.clone().unwrap().get().unwrap();
+        let job_value = serde_json::to_value(job).unwrap();
+        //let job_value = serde_json::to_value(self.job).unwrap();
+        //conn.publish("jobs:grin", "xxx").unwrap();
+        let _: () = conn.publish("jobs:grin", job_value.to_string()).unwrap();
+    }
     pub fn addBlock(&mut self,block: &String) {
         // let client = Client::open("redis://127.0.0.1/8").unwrap();
         // let conn = client.get_connection().unwrap();
         //
-        let conn = self.redpool2.clone().unwrap().get().unwrap();
+        let conn = self.redpool.clone().unwrap().get().unwrap();
 
         let dt = Utc::today().format("%Y-%m-%d");
         let daily_user = format!("grin:{}:{}:blocks",dt,self.login().clone());
